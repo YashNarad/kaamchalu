@@ -12,7 +12,7 @@ export default function SignupPage() {
   const [role, setRole] = useState("customer"); // Default to customer
   const [loading, setLoading] = useState(false);
 
-  const handleSignup = async (e: any) => {
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
@@ -36,19 +36,20 @@ export default function SignupPage() {
     }
 
     // 2. Fallback: Manual Profile Upsert
-    // Since we have an SQL trigger, the profile is mostly already created.
-    // However, if the trigger fails or is not setup, you can safely UPSERT it here.
+    // If the SQL trigger failed or was not setup, we can attempt an UPSERT here.
+    // Note: If email confirmations are ON, the user is not authed immediately.
+    // RLS might block this client-side insert. The SQL trigger handles it securely regardless.
     if (authData.user) {
       const { error: profileError } = await supabase
         .from("profiles")
-        .upsert([{ 
+        .upsert({ 
           id: authData.user.id, 
           email: email,
           role: role 
-        }], { onConflict: 'id' });
+        }, { onConflict: 'id' });
 
       if (profileError) {
-        console.error("Profile manual upsert failed (Trigger might have already succeeded):", profileError);
+        console.warn("Client profile upsert skipped or failed (Postgres trigger usually handles this):", profileError.message);
       }
       
       alert("Signup successful ✅ Now login");
