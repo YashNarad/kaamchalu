@@ -4,11 +4,17 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { Job, Profile } from "@/lib/types";
+import Toast from "@/components/Toast";
 
 export default function JobsPage() {
     const router = useRouter();
     const [jobs, setJobs] = useState<Job[]>([]);
     const [bookingLoading, setBookingLoading] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+    const showToast = (message: string, type: 'success' | 'error' | 'warning') => {
+        setToast({ message, type });
+    };
 
     // ✅ Protect route
     useEffect(() => {
@@ -42,7 +48,7 @@ export default function JobsPage() {
         try {
             const { data: { user }, error: authError } = await supabase.auth.getUser();
             if (authError || !user) {
-                alert("Please log in to book a worker.");
+                showToast("Please log in to book a worker.", "error");
                 return;
             }
 
@@ -82,7 +88,7 @@ export default function JobsPage() {
                         .returns<Profile[]>();
 
                     if (allWorkersError || !allWorkers || allWorkers.length === 0) {
-                        alert("No available workers found at the moment.");
+                        showToast("No available workers found at the moment.", "warning");
                         return;
                     }
                     
@@ -100,19 +106,19 @@ export default function JobsPage() {
             });
 
             if (bookingError) {
-                alert("Failed to book worker: " + bookingError.message);
+                showToast("Failed to book worker: " + bookingError.message, "error");
             } else {
                 if (matchType === 'exact') {
-                    alert(`🎉 Successfully matched and requested an exact local worker for this job!`);
+                    showToast(`🎉 Successfully matched and requested an exact local worker for this job!`, "success");
                 } else if (matchType === 'category') {
-                    alert(`✅ Found a specialized worker for this job! (Local worker not available)`);
+                    showToast(`✅ Found a specialized worker for this job! (Local worker not available)`, "warning");
                 } else {
-                    alert(`⚠️ No exact match found for "${jobCategory}". A general available worker has been assigned.`);
+                    showToast(`⚠️ No exact match found for "${jobCategory}". A general available worker has been assigned.`, "warning");
                 }
             }
         } catch (error: any) {
             console.error("Booking error:", error);
-            alert("An unexpected error occurred during booking.");
+            showToast("An unexpected network error occurred during booking.", "error");
         } finally {
             setBookingLoading(null);
         }
@@ -187,6 +193,14 @@ export default function JobsPage() {
                 ))}
                 {jobs.length === 0 && <p className="text-gray-500">No jobs posted yet.</p>}
             </div>
+
+            {toast && (
+                <Toast 
+                    message={toast.message} 
+                    type={toast.type} 
+                    onClose={() => setToast(null)} 
+                />
+            )}
         </div>
     );
 }
