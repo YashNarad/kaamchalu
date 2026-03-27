@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { Job, Profile } from "@/lib/types";
 import Toast from "@/components/Toast";
+import { workerService } from "@/lib/services/workerService";
 
 export default function JobsPage() {
     const router = useRouter();
@@ -52,62 +53,16 @@ export default function JobsPage() {
                 return;
             }
 
-            let bestWorker: Profile | null = null;
-            let matchType = 'none'; // 'exact', 'category', 'general'
+            const { worker, matchType, error: matchError } = await workerService.getMatchingWorkers(jobCategory, jobLocation);
 
-            // 1. Try to find workers that match BOTH category and location
-            const { data: exactWorkers, error: exactError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('role', 'worker')
-                .ilike('category', `%${jobCategory}%`)
-                .ilike('location', `%${jobLocation}%`)
-                .returns<Profile[]>();
-
-            if (!exactError && exactWorkers && exactWorkers.length > 0) {
-                bestWorker = exactWorkers[0];
-                matchType = 'exact';
-            } else {
-                // 2. Fallback to workers that match ONLY category
-                const { data: categoryWorkers, error: categoryError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('role', 'worker')
-                    .ilike('category', `%${jobCategory}%`)
-                    .returns<Profile[]>();
-
-                if (!categoryError && categoryWorkers && categoryWorkers.length > 0) {
-                    bestWorker = categoryWorkers[0];
-                    matchType = 'category';
-                } else {
-                    // 3. Fallback to any available worker if no match is found (Backward Compatibility)
-                    const { data: allWorkers, error: allWorkersError } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('role', 'worker')
-                        .returns<Profile[]>();
-
-                    if (allWorkersError || !allWorkers || allWorkers.length === 0) {
-                        showToast("No available workers found at the moment.", "warning");
-                        return;
-                    }
-                    
-                    bestWorker = allWorkers[0];
-                    matchType = 'general';
-                }
+            if (matchError || !worker) {
+                showToast(matchError || "No available workers found at the moment.", "warning");
+                return;
             }
 
-            // Insert booking referencing the global job
-            const { error: bookingError } = await supabase.from("bookings").insert({
-                job_id: jobId,
-                customer_id: user.id,
-                worker_id: bestWorker.id,
-                status: "pending"
-            });
-
-            if (bookingError) {
-                showToast("Failed to book worker: " + bookingError.message, "error");
-            } else {
+            try {
+                await workerService.createBooking(jobId, user.id, worker.id);
+                
                 if (matchType === 'exact') {
                     showToast(`🎉 Successfully matched and requested an exact local worker for this job!`, "success");
                 } else if (matchType === 'category') {
@@ -115,6 +70,8 @@ export default function JobsPage() {
                 } else {
                     showToast(`⚠️ No exact match found for "${jobCategory}". A general available worker has been assigned.`, "warning");
                 }
+            } catch (bookingError: any) {
+                showToast("Failed to book worker: " + bookingError.message, "error");
             }
         } catch (error: any) {
             console.error("Booking error:", error);
