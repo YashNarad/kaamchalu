@@ -3,19 +3,21 @@ export interface Profile {
   email: string;
   role: 'customer' | 'worker';
   category?: string;
-  location?: string;
+  city?: string;
   created_at: string;
 }
 
 export interface Job {
   id: string;
   customer_id: string;
+  title: string;
   category: string;
   description: string;
-  location: string;
-  preferred_date: string;
-  preferred_time: string;
+  city: string;
+  date: string;
+  time: string;
   budget: number;
+  status: 'open' | 'accepted' | 'completed';
   created_at: string;
 }
 

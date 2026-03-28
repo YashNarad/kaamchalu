@@ -11,9 +11,9 @@ export interface MatchingResult {
 
 export const workerService = {
   /**
-   * Finds the best matching worker based on category and optional location.
+   * Finds the best matching worker based on category and optional city.
    */
-  async getMatchingWorkers(category: string, location: string): Promise<MatchingResult> {
+  async getMatchingWorkers(category: string, city: string): Promise<MatchingResult> {
     try {
       // 1. Try exact match
       const { data: exactWorkers, error: exactError } = await supabase
@@ -21,7 +21,7 @@ export const workerService = {
         .select('*')
         .eq('role', 'worker')
         .ilike('category', `%${category}%`)
-        .ilike('location', `%${location}%`)
+        .ilike('city', `%${city}%`)
         .returns<Profile[]>();
 
       if (!exactError && exactWorkers && exactWorkers.length > 0) {

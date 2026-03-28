@@ -3,7 +3,7 @@ import LogoutButton from "@/components/LogoutButton";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { Job, Profile } from "@/lib/types";
+import { Job } from "@/lib/types";
 import Toast from "@/components/Toast";
 import { workerService } from "@/lib/services/workerService";
 
@@ -17,7 +17,6 @@ export default function JobsPage() {
         setToast({ message, type });
     };
 
-    // ✅ Protect route
     useEffect(() => {
         const checkUser = async () => {
             const { data } = await supabase.auth.getUser();
@@ -32,19 +31,18 @@ export default function JobsPage() {
         checkUser();
     }, []);
 
-    // ✅ Fetch jobs
     const fetchJobs = async () => {
+        // Strict mapping against new table enforcement
         const { data, error } = await supabase.from("jobs").select("*").order("created_at", { ascending: false });
 
         if (error) {
-            console.log(error);
+            console.log("Fetch Error:", error.message);
         } else {
-            setJobs(data);
+            setJobs(data as Job[]);
         }
     };
 
-    // ✅ Handle Book Worker
-    const handleBookWorker = async (jobId: string, jobCategory: string, jobLocation: string) => {
+    const handleBookWorker = async (jobId: string, jobCategory: string, jobCity: string) => {
         setBookingLoading(jobId);
         try {
             const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -53,7 +51,8 @@ export default function JobsPage() {
                 return;
             }
 
-            const { worker, matchType, error: matchError } = await workerService.getMatchingWorkers(jobCategory, jobLocation);
+            // Mapped dynamically out to the city matching matrix
+            const { worker, matchType, error: matchError } = await workerService.getMatchingWorkers(jobCategory, jobCity);
 
             if (matchError || !worker) {
                 showToast(matchError || "No available workers found at the moment.", "warning");
@@ -81,7 +80,6 @@ export default function JobsPage() {
         }
     };
 
-    // ✅ Logout
     const handleLogout = async () => {
         await supabase.auth.signOut();
         router.push("/login");
@@ -89,75 +87,67 @@ export default function JobsPage() {
 
     return (
         <div className="min-h-screen bg-black text-white p-6">
-            {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">All Jobs</h1>
 
                 <div className="flex gap-3">
-                    <button
-                        onClick={() => router.push("/dashboard")}
-                        className="bg-purple-600 hover:bg-purple-700 transition px-4 py-2 rounded-lg"
-                    >
+                    <button onClick={() => router.push("/dashboard")} className="bg-purple-600 hover:bg-purple-700 transition px-4 py-2 rounded-lg">
                         Dashboard
                     </button>
 
-                    <button
-                        onClick={() => router.push("/jobs/new")}
-                        className="bg-blue-600 hover:bg-blue-700 transition px-4 py-2 rounded-lg"
-                    >
+                    <button onClick={() => router.push("/jobs/new")} className="bg-blue-600 hover:bg-blue-700 transition px-4 py-2 rounded-lg">
                         + Post Job
                     </button>
 
-                    <button
-                        onClick={handleLogout}
-                        className="bg-red-500 hover:bg-red-600 transition px-4 py-2 rounded-lg"
-                    >
+                    <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 transition px-4 py-2 rounded-lg">
                         Logout
                     </button>
                 </div>
             </div>
 
-            {/* Jobs Grid */}
             <div className="grid md:grid-cols-3 gap-6">
                 {jobs.map((job) => (
-                    <div
-                        key={job.id}
-                        className="bg-gray-900 p-5 rounded-xl border border-gray-800 flex flex-col justify-between"
-                    >
+                    <div key={job.id} className="bg-gray-900 p-5 rounded-xl border border-gray-800 flex flex-col justify-between">
                         <div>
-                            <h2 className="text-xl font-semibold">{job.category}</h2>
-                            <p className="text-gray-400 mt-2">{job.description}</p>
+                            <div className="flex justify-between items-start mb-2">
+                               <h2 className="text-xl font-bold text-white line-clamp-1">{job.title || job.category}</h2>
+                               <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded ${job.status === 'open' ? 'bg-yellow-500/20 text-yellow-500' : job.status === 'accepted' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                  {job.status}
+                               </span>
+                            </div>
+                            
+                            <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">{job.category}</p>
+                            <p className="text-gray-400 mt-2 line-clamp-2">{job.description}</p>
 
-                            <div className="mt-4 text-sm text-gray-500 space-y-1">
-                                <p>📍 {job.location}</p>
-                                <p>📅 {job.preferred_date}</p>
-                                <p>⏰ {job.preferred_time}</p>
-                                <p className="text-white mt-1">💰 ₹{job.budget}</p>
+                            <div className="mt-4 text-sm text-gray-400 space-y-2">
+                                <p>📍 <span className="text-gray-300">{job.city}</span></p>
+                                <p>📅 <span className="text-gray-300">{job.date ? new Date(job.date).toLocaleDateString() : 'Flexible'}</span></p>
+                                <p>⏰ <span className="text-gray-300">{job.time || 'Flexible'}</span></p>
+                                <p className="text-green-400 font-semibold mt-1">💰 ₹{job.budget}</p>
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => handleBookWorker(job.id, job.category, job.location)}
-                            disabled={bookingLoading === job.id}
-                            className={`mt-5 w-full py-2.5 rounded-lg font-medium transition ${bookingLoading === job.id
-                                ? "bg-gray-800 text-gray-500 cursor-not-allowed"
-                                : "bg-green-600 hover:bg-green-700 text-white"
-                                }`}
-                        >
-                            {bookingLoading === job.id ? "Booking..." : "Book Worker"}
-                        </button>
+                        {job.status === "open" && (
+                            <button
+                                onClick={() => handleBookWorker(job.id, job.category, job.city)}
+                                disabled={bookingLoading === job.id}
+                                className={`mt-5 w-full py-2.5 rounded-lg font-medium transition ${bookingLoading === job.id ? "bg-gray-800 text-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700 text-white"}`}
+                            >
+                                {bookingLoading === job.id ? "Booking Worker..." : "Match Worker Automatically"}
+                            </button>
+                        )}
+                        {job.status !== "open" && (
+                            <div className="mt-5 w-full py-2.5 rounded-lg font-medium text-center border border-gray-700 bg-black/40 text-gray-500">
+                                Worker Assigned / Completed
+                            </div>
+                        )}
                     </div>
                 ))}
+                
                 {jobs.length === 0 && <p className="text-gray-500">No jobs posted yet.</p>}
             </div>
 
-            {toast && (
-                <Toast 
-                    message={toast.message} 
-                    type={toast.type} 
-                    onClose={() => setToast(null)} 
-                />
-            )}
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div>
     );
 }

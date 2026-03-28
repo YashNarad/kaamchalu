@@ -8,9 +8,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS name TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS category TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS experience INTEGER;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS price NUMERIC;
+
+-- Rename legacy column if they already built out profiles earlier
+ALTER TABLE public.profiles RENAME COLUMN location TO city;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -62,10 +65,30 @@ CREATE TRIGGER on_auth_user_created
 -- Note: Keep your bookings and jobs modifications from before:
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS date DATE;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS time TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS budget INTEGER;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('open', 'accepted', 'completed')) DEFAULT 'open';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL;
+
+-- Real Marketplace DB Standardization Scripts
+-- 1. Safely port any data where possible
+UPDATE public.jobs SET city = location WHERE city IS NULL AND location IS NOT NULL;
+
+-- 2. Drop the redundant location column definitively
+ALTER TABLE public.jobs DROP COLUMN IF EXISTS location;
+
+-- 3. Scrub bad legacy data / uncomplete form ghosts 
+DELETE FROM public.jobs WHERE city IS NULL OR title IS NULL OR category IS NULL OR date IS NULL;
+
+-- 4. Enforce strict constraint for future pipeline integrity
+ALTER TABLE public.jobs ALTER COLUMN city SET NOT NULL;
+ALTER TABLE public.jobs ALTER COLUMN title SET NOT NULL;
+ALTER TABLE public.jobs ALTER COLUMN category SET NOT NULL;
+ALTER TABLE public.jobs ALTER COLUMN date SET NOT NULL;
 
 -- Re-create bookings table
 DROP TABLE IF EXISTS public.bookings CASCADE;
