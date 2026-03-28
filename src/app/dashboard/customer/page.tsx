@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { jobService } from "@/lib/services/jobService";
+import { userService } from "@/lib/services/userService";
 import Toast from "@/components/Toast";
 import Link from "next/link";
 import { Job, Booking } from "@/lib/types";
@@ -27,32 +28,18 @@ export default function CustomerDashboard() {
   const fetchMyJobs = async () => {
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-         router.push("/login"); return;
-      }
-
-      const { data, error } = await supabase
-        .from("jobs")
-        .select(`
-          *,
-          bookings (
-            *,
-            worker:profiles!bookings_worker_id_fkey(name)
-          )
-        `)
-        .eq("customer_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-         console.error("Fetch Jobs Error:", error);
-         throw error;
-      }
+      const { user } = await userService.getCurrentUser();
+      const data = await jobService.getUserJobs(user.id);
       
-      if (data) {
-          const jobs = data as any as DashboardJob[];
-          setActiveJobs(jobs.filter(j => j.status !== 'completed'));
-          setPastJobs(jobs.filter(j => j.status === 'completed'));
+      const jobs = data as any as DashboardJob[];
+      setActiveJobs(jobs.filter(j => j.status !== 'completed'));
+      setPastJobs(jobs.filter(j => j.status === 'completed'));
+    } catch (error: any) {
+      console.error("Fetch Jobs Error:", error);
+      if (error.message === "Not logged in") {
+        router.push("/login");
+      } else {
+        setToast({ message: "Failed to load jobs.", type: "error" });
       }
 
     } finally {

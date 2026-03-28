@@ -30,3 +30,13 @@ export interface Booking {
   status: 'pending' | 'accepted' | 'rejected' | 'confirmed' | 'completed';
   created_at: string;
 }
+
+export interface Rating {
+  id: string;
+  booking_id: string;
+  reviewer_id: string;
+  reviewee_id: string;
+  rating: number;
+  review_text?: string;
+  created_at: string;
+}

@@ -192,3 +192,37 @@ CREATE POLICY "Customer can update own booking"
   ON public.bookings FOR UPDATE
   USING (auth.uid() = customer_id)
   WITH CHECK (auth.uid() = customer_id);
+
+-- ----------------------------------------------------------------------------
+-- RATINGS TABLE FOR REVIEWS
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.ratings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
+  reviewer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  reviewee_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  review_text TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(booking_id, reviewer_id)
+);
+
+ALTER TABLE public.ratings ENABLE ROW LEVEL SECURITY;
+
+-- Prevent duplicated ratings by using a unique constraint
+DROP POLICY IF EXISTS "Users can insert ratings" ON public.ratings;
+CREATE POLICY "Users can insert ratings"
+  ON public.ratings FOR INSERT
+  WITH CHECK (
+    auth.uid() = reviewer_id AND 
+    EXISTS (
+      SELECT 1 FROM public.bookings b 
+      WHERE b.id = booking_id AND b.status = 'completed' AND 
+            (b.customer_id = auth.uid() OR b.worker_id = auth.uid())
+    )
+  );
+
+DROP POLICY IF EXISTS "Anyone can view ratings" ON public.ratings;
+CREATE POLICY "Anyone can view ratings"
+  ON public.ratings FOR SELECT
+  USING (true);

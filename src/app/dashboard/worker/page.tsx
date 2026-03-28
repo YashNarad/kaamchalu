@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Toast from "@/components/Toast";
 import { getStatusBadgeClasses } from "@/lib/badge";
+import { bookingService } from "@/lib/services/bookingService";
+import { userService } from "@/lib/services/userService";
 
 interface Booking {
   id: string;
@@ -31,27 +33,13 @@ export default function WorkerDashboard() {
     const setupDashboard = async () => {
       setIsLoading(true);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        const { user } = await userService.getCurrentUser();
 
         // Fetch bookings AND join the corresponding Jobs table
-        const { data, error } = await supabase
-          .from("bookings")
-          .select(`
-             id, 
-             status, 
-             created_at, 
-             jobs (*)
-          `)
-          .eq("worker_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          setToast({ message: "Failed to load bookings: " + error.message, type: "error" });
-        } else if (data) {
-          // Explicit casting for the joined data
-          setBookings(data as any as Booking[]);
-        }
+        const data = await bookingService.getBookingsByWorker(user.id);
+        
+        // Explicit casting for the joined data
+        setBookings(data as any as Booking[]);
 
         // Realtime Subscription
         channel = supabase.channel('worker-bookings-dashboard')
@@ -97,13 +85,12 @@ export default function WorkerDashboard() {
   const updateBookingStatus = async (id: string, status: 'accepted' | 'rejected' | 'completed') => {
     setActionLoading(id);
     try {
-      const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
-      
-      if (!error) {
-         setToast({ message: `Booking has been ${status}.`, type: "success" });
-      } else {
-         throw new Error(error.message);
+      if (status === 'completed') {
+         // Also update job to completed if completing booking. For simplicity in worker dashboard, logic handles it.
+         // Actually in worker dashboard, we just need to update the booking.
       }
+      await bookingService.updateBookingStatus(id, status);
+      setToast({ message: `Booking has been ${status}.`, type: "success" });
     } catch (err: any) {
       setToast({ message: `Error: ${err.message}`, type: "error" });
     } finally {
