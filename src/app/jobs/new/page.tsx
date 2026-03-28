@@ -41,6 +41,7 @@ export default function NewJob() {
                return;
             }
 
+            // True Marketplace Insert Execution
             const { error } = await supabase.from("jobs").insert([
                 {
                     customer_id: user.id,
@@ -48,14 +49,17 @@ export default function NewJob() {
                     category: form.category,
                     description: form.description,
                     city: form.city,
-                    preferred_date: form.date,
-                    preferred_time: form.time,
+                    date: form.date,
+                    time: form.time,
                     budget: Number(form.budget),
-                    status: "open" // Explicitly marking as open per marketplace rules
+                    status: "open"
                 },
             ]);
 
-            if (error) throw error;
+            if (error) {
+               console.error("Supabase Insert Error: ", error);
+               throw new Error(error.message);
+            }
 
             setToast({ message: "Job posted to the marketplace successfully!", type: "success" });
             

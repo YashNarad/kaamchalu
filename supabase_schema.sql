@@ -63,6 +63,8 @@ CREATE TRIGGER on_auth_user_created
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS title TEXT;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS date DATE;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS time TEXT;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('open', 'accepted', 'completed')) DEFAULT 'open';
 
 -- Re-create bookings table
