@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Job } from "@/lib/types";
 import Toast from "@/components/Toast";
 import { workerService } from "@/lib/services/workerService";
+import { getStatusBadgeClasses } from "@/lib/badge";
 
 export default function JobsPage() {
     const router = useRouter();
@@ -111,8 +112,8 @@ export default function JobsPage() {
                         <div>
                             <div className="flex justify-between items-start mb-2">
                                <h2 className="text-xl font-bold text-white line-clamp-1">{job.title || job.category}</h2>
-                               <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded ${job.status === 'open' ? 'bg-yellow-500/20 text-yellow-500' : job.status === 'accepted' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                  {job.status}
+                               <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded ${getStatusBadgeClasses(job.status)}`}>
+                                  {job.status.replace("_", " ")}
                                </span>
                             </div>
                             

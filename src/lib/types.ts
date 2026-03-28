@@ -1,6 +1,7 @@
 export interface Profile {
   id: string;
   email: string;
+  name?: string;
   role: 'customer' | 'worker';
   category?: string;
   city?: string;
@@ -17,7 +18,7 @@ export interface Job {
   preferred_date: string;
   preferred_time: string;
   budget: number;
-  status: 'open' | 'accepted' | 'completed';
+  status: 'open' | 'accepted' | 'confirmed' | 'in_progress' | 'completed';
   created_at: string;
 }
 
@@ -26,6 +27,6 @@ export interface Booking {
   job_id: string;
   customer_id: string;
   worker_id: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  status: 'pending' | 'accepted' | 'rejected' | 'confirmed' | 'completed';
   created_at: string;
 }

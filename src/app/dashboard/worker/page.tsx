@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Toast from "@/components/Toast";
+import { getStatusBadgeClasses } from "@/lib/badge";
 
 interface Booking {
   id: string;
@@ -151,12 +152,8 @@ export default function WorkerDashboard() {
                   <div>
                     {/* Header */}
                     <div className="flex justify-between items-start mb-5">
-                      <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-md
-                        ${booking.status === 'accepted' ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
-                        : booking.status === 'rejected' ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-                        : booking.status === 'completed' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                        : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'}`}>
-                         {booking.status}
+                      <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-md ${getStatusBadgeClasses(booking.status)}`}>
+                         {booking.status.replace("_", " ")}
                       </span>
                       <p className="text-xs text-gray-500">
                         {new Date(booking.created_at).toLocaleDateString()}

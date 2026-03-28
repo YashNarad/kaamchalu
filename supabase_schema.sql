@@ -92,7 +92,17 @@ END $$;
 ALTER TABLE public.jobs DROP COLUMN IF EXISTS date;
 ALTER TABLE public.jobs DROP COLUMN IF EXISTS time;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS budget INTEGER;
-ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('open', 'accepted', 'completed')) DEFAULT 'open';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'open';
+-- Safely update constraint if status column already existed with strict check
+DO $$ 
+DECLARE
+  con text;
+BEGIN
+  FOR con IN SELECT constraint_name FROM information_schema.constraint_column_usage WHERE table_name = 'jobs' AND column_name = 'status' LOOP
+    EXECUTE 'ALTER TABLE public.jobs DROP CONSTRAINT IF EXISTS ' || con;
+  END LOOP;
+END $$;
+ALTER TABLE public.jobs ADD CONSTRAINT jobs_status_check CHECK (status IN ('open', 'accepted', 'confirmed', 'in_progress', 'completed'));
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL;
 
 -- Real Marketplace DB Standardization Scripts
@@ -119,10 +129,10 @@ DROP TABLE IF EXISTS public.bookings CASCADE;
 
 CREATE TABLE public.bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  worker_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  job_id UUID NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'completed')) DEFAULT 'pending',
+  customer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  worker_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  job_id UUID NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'confirmed', 'completed')) DEFAULT 'pending',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -154,6 +164,7 @@ DROP POLICY IF EXISTS "Customer can insert bookings" ON public.bookings;
 DROP POLICY IF EXISTS "Customer can view own bookings" ON public.bookings;
 DROP POLICY IF EXISTS "Worker can view bookings assigned to them" ON public.bookings;
 DROP POLICY IF EXISTS "Worker can update booking status" ON public.bookings;
+DROP POLICY IF EXISTS "Customer can update own booking" ON public.bookings;
 
 -- 1. Customer can insert bookings
 CREATE POLICY "Customer can insert bookings"
@@ -175,3 +186,9 @@ CREATE POLICY "Worker can update booking status"
   ON public.bookings FOR UPDATE
   USING (auth.uid() = worker_id)
   WITH CHECK (auth.uid() = worker_id);
+
+-- 5. Customer can update booking status
+CREATE POLICY "Customer can update own booking"
+  ON public.bookings FOR UPDATE
+  USING (auth.uid() = customer_id)
+  WITH CHECK (auth.uid() = customer_id);
