@@ -67,9 +67,29 @@ CREATE TABLE public.bookings (
   customer_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   worker_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   job_id UUID NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')) DEFAULT 'pending',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'completed')) DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Function to automatically update the updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Trigger for bookings table updated_at
+DROP TRIGGER IF EXISTS update_bookings_updated_at ON public.bookings;
+CREATE TRIGGER update_bookings_updated_at
+    BEFORE UPDATE ON public.bookings
+    FOR EACH ROW
+    EXECUTE PROCEDURE update_updated_at_column();
+
+-- Enable Realtime for bookings table
+ALTER PUBLICATION supabase_realtime ADD TABLE public.bookings;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
