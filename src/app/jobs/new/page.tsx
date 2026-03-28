@@ -14,8 +14,8 @@ export default function NewJob() {
         category: "",
         description: "",
         city: "",
-        date: "",
-        time: "Morning",
+        preferred_date: "",
+        preferred_time: "Morning",
         budget: "",
     });
 
@@ -36,7 +36,7 @@ export default function NewJob() {
                return;
             }
 
-            if (!form.title || !form.category || !form.city || !form.date || !form.budget) {
+            if (!form.title || !form.category || !form.city || !form.preferred_date || !form.budget) {
                setToast({ message: "Please fill in all required fields.", type: "error" });
                return;
             }
@@ -49,8 +49,8 @@ export default function NewJob() {
                     category: form.category,
                     description: form.description,
                     city: form.city,
-                    date: form.date,
-                    time: form.time,
+                    preferred_date: form.preferred_date,
+                    preferred_time: form.preferred_time,
                     budget: Number(form.budget),
                     status: "open"
                 },
@@ -139,7 +139,7 @@ export default function NewJob() {
                         <label className="block text-sm font-semibold text-gray-300 mb-1.5">Date</label>
                         <input
                             type="date"
-                            name="date"
+                            name="preferred_date"
                             className="w-full p-3.5 bg-black/50 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-gray-300"
                             onChange={handleChange}
                         />
@@ -148,8 +148,8 @@ export default function NewJob() {
                       <div>
                         <label className="block text-sm font-semibold text-gray-300 mb-1.5">Time Preference</label>
                         <select
-                            name="time"
-                            value={form.time}
+                            name="preferred_time"
+                            value={form.preferred_time}
                             className="w-full p-3.5 bg-black/50 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-white cursor-pointer"
                             onChange={handleChange}
                         >

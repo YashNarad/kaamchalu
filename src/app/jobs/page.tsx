@@ -121,8 +121,8 @@ export default function JobsPage() {
 
                             <div className="mt-4 text-sm text-gray-400 space-y-2">
                                 <p>📍 <span className="text-gray-300">{job.city}</span></p>
-                                <p>📅 <span className="text-gray-300">{job.date ? new Date(job.date).toLocaleDateString() : 'Flexible'}</span></p>
-                                <p>⏰ <span className="text-gray-300">{job.time || 'Flexible'}</span></p>
+                                <p>📅 <span className="text-gray-300">{job.preferred_date ? new Date(job.preferred_date).toLocaleDateString() : 'Flexible'}</span></p>
+                                <p>⏰ <span className="text-gray-300">{job.preferred_time || 'Flexible'}</span></p>
                                 <p className="text-green-400 font-semibold mt-1">💰 ₹{job.budget}</p>
                             </div>
                         </div>

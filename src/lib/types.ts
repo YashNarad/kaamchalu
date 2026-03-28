@@ -14,8 +14,8 @@ export interface Job {
   category: string;
   description: string;
   city: string;
-  date: string;
-  time: string;
+  preferred_date: string;
+  preferred_time: string;
   budget: number;
   status: 'open' | 'accepted' | 'completed';
   created_at: string;

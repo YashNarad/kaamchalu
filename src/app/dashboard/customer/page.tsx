@@ -9,8 +9,8 @@ interface Job {
   title: string;
   category: string;
   city: string;
-  date: string;
-  time: string;
+  preferred_date: string;
+  preferred_time: string;
   budget: number;
   status: 'open' | 'accepted' | 'completed';
 }
@@ -35,7 +35,7 @@ export default function CustomerDashboard() {
 
       const { data, error } = await supabase
         .from("jobs")
-        .select("id, title, category, city, date, time, budget, status")
+        .select("id, title, category, city, preferred_date, preferred_time, budget, status")
         .eq("customer_id", user.id)
         .order("id", { ascending: false });
 
@@ -109,7 +109,15 @@ export default function CustomerDashboard() {
                        <span className="text-gray-500 text-lg">📅</span>
                        <div>
                           <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Scheduled Date</p>
-                          <p className="text-sm text-gray-200">{job.date ? new Date(job.date).toLocaleDateString() : "Flexible"}</p>
+                          <p className="text-sm text-gray-200">{job.preferred_date ? new Date(job.preferred_date).toLocaleDateString() : "Flexible"}</p>
+                       </div>
+                     </div>
+
+                     <div className="flex items-center gap-3">
+                       <span className="text-gray-500 text-lg">⏰</span>
+                       <div>
+                          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Time Preference</p>
+                          <p className="text-sm text-gray-200">{job.preferred_time || "Flexible"}</p>
                        </div>
                      </div>
                      

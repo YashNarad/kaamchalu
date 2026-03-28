@@ -12,8 +12,14 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS experience INTEGER;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS price NUMERIC;
 
--- Rename legacy column if they already built out profiles earlier
-ALTER TABLE public.profiles RENAME COLUMN location TO city;
+-- Safely port legacy column 'location' to 'city' if it exists
+DO $$ 
+BEGIN 
+  IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='profiles' and column_name='location') THEN
+      EXECUTE 'UPDATE public.profiles SET city = location WHERE city IS NULL AND location IS NOT NULL';
+      EXECUTE 'ALTER TABLE public.profiles DROP COLUMN location';
+  END IF;
+END $$;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -68,27 +74,45 @@ ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS title TEXT;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS category TEXT;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS city TEXT;
-ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS date DATE;
-ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS time TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS preferred_date DATE;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS preferred_time TEXT;
+
+-- Safely copy legacy data using DO block to prevent query compilation errors if columns don't exist
+DO $$ 
+BEGIN 
+  IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='jobs' and column_name='date') THEN
+      EXECUTE 'UPDATE public.jobs SET preferred_date = date WHERE preferred_date IS NULL AND date IS NOT NULL';
+  END IF;
+  
+  IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='jobs' and column_name='time') THEN
+      EXECUTE 'UPDATE public.jobs SET preferred_time = time WHERE preferred_time IS NULL AND time IS NOT NULL';
+  END IF;
+END $$;
+
+ALTER TABLE public.jobs DROP COLUMN IF EXISTS date;
+ALTER TABLE public.jobs DROP COLUMN IF EXISTS time;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS budget INTEGER;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('open', 'accepted', 'completed')) DEFAULT 'open';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL;
 
 -- Real Marketplace DB Standardization Scripts
--- 1. Safely port any data where possible
-UPDATE public.jobs SET city = location WHERE city IS NULL AND location IS NOT NULL;
-
--- 2. Drop the redundant location column definitively
-ALTER TABLE public.jobs DROP COLUMN IF EXISTS location;
+-- 1. Safely port any legacy 'location' data before dropping
+DO $$ 
+BEGIN 
+  IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='jobs' and column_name='location') THEN
+      EXECUTE 'UPDATE public.jobs SET city = location WHERE city IS NULL AND location IS NOT NULL';
+      EXECUTE 'ALTER TABLE public.jobs DROP COLUMN location';
+  END IF;
+END $$;
 
 -- 3. Scrub bad legacy data / uncomplete form ghosts 
-DELETE FROM public.jobs WHERE city IS NULL OR title IS NULL OR category IS NULL OR date IS NULL;
+DELETE FROM public.jobs WHERE city IS NULL OR title IS NULL OR category IS NULL OR preferred_date IS NULL;
 
 -- 4. Enforce strict constraint for future pipeline integrity
 ALTER TABLE public.jobs ALTER COLUMN city SET NOT NULL;
 ALTER TABLE public.jobs ALTER COLUMN title SET NOT NULL;
 ALTER TABLE public.jobs ALTER COLUMN category SET NOT NULL;
-ALTER TABLE public.jobs ALTER COLUMN date SET NOT NULL;
+ALTER TABLE public.jobs ALTER COLUMN preferred_date SET NOT NULL;
 
 -- Re-create bookings table
 DROP TABLE IF EXISTS public.bookings CASCADE;
