@@ -59,14 +59,44 @@ CREATE TRIGGER on_auth_user_created
 -- Note: Keep your bookings and jobs modifications from before:
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
 
--- Re-create bookings table relying solely on job_id relation
+-- Re-create bookings table
 DROP TABLE IF EXISTS public.bookings CASCADE;
 
 CREATE TABLE public.bookings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  job_id UUID REFERENCES public.jobs(id) ON DELETE CASCADE,
-  customer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  worker_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  status TEXT CHECK (status IN ('pending', 'accepted', 'rejected', 'completed')) DEFAULT 'pending',
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  worker_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  job_id UUID NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')) DEFAULT 'pending',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies to allow clean recreation
+DROP POLICY IF EXISTS "Customer can insert bookings" ON public.bookings;
+DROP POLICY IF EXISTS "Customer can view own bookings" ON public.bookings;
+DROP POLICY IF EXISTS "Worker can view bookings assigned to them" ON public.bookings;
+DROP POLICY IF EXISTS "Worker can update booking status" ON public.bookings;
+
+-- 1. Customer can insert bookings
+CREATE POLICY "Customer can insert bookings"
+  ON public.bookings FOR INSERT
+  WITH CHECK (auth.uid() = customer_id);
+
+-- 2. Customer can view own bookings
+CREATE POLICY "Customer can view own bookings"
+  ON public.bookings FOR SELECT
+  USING (auth.uid() = customer_id);
+
+-- 3. Worker can view bookings assigned to them
+CREATE POLICY "Worker can view bookings assigned to them"
+  ON public.bookings FOR SELECT
+  USING (auth.uid() = worker_id);
+
+-- 4. Worker can update booking status
+CREATE POLICY "Worker can update booking status"
+  ON public.bookings FOR UPDATE
+  USING (auth.uid() = worker_id)
+  WITH CHECK (auth.uid() = worker_id);
